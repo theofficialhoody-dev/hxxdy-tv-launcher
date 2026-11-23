@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 186 100">
+  <circle cx="50" cy="50" r="32" fill="#FFD100"/>
+  <circle cx="50" cy="50" r="22" fill="#000000"/>
+  <circle cx="50" cy="50" r="12" fill="#FFFFFF"/>
+  <text x="96" y="52" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="900" font-size="28" letter-spacing="-0.5">pluto</text>
+  <text x="96" y="74" fill="#FFD100" font-family="system-ui, sans-serif" font-weight="900" font-size="18" letter-spacing="3">TV</text>
+</svg>

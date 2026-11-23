@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 56" fill="none">
+  <defs>
+    <linearGradient id="hl-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="70%" stop-color="#e0f2fe" />
+      <stop offset="100%" stop-color="#38bdf8" />
+    </linearGradient>
+    <linearGradient id="beacon-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#38bdf8" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <!-- Stylized Beacon Mark -->
+  <g transform="translate(6, 12)">
+    <circle cx="14" cy="14" r="3.5" fill="#38bdf8" />
+    <circle cx="14" cy="14" r="8" stroke="#38bdf8" stroke-width="1.2" stroke-opacity="0.6" stroke-dasharray="3 2" />
+    <path d="M14 2 L26 26 L2 26 Z" stroke="url(#hl-glow)" stroke-width="1.5" stroke-linejoin="round" fill="none" opacity="0.4" />
+    <line x1="14" y1="0" x2="14" y2="28" stroke="#ffffff" stroke-width="1" opacity="0.3" />
+  </g>
+  <!-- Typography -->
+  <text x="46" y="27" font-family="system-ui, -apple-system, sans-serif" font-size="19" font-weight="800" letter-spacing="4" fill="url(#hl-glow)">
+    HARBOR
+  </text>
+  <text x="46" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="500" letter-spacing="7" fill="#94a3b8">
+    LIGHTS
+  </text>
+  <circle cx="166" cy="42" r="1.5" fill="#38bdf8" opacity="0.8" />
+</svg>

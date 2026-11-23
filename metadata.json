@@ -1,0 +1,8 @@
+{
+  "name": "Cinematic TV Launcher",
+  "description": "A cinematic, remote-first TV home screen launcher for browsing and launching streaming apps.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ],
+  "permissions": []
+}

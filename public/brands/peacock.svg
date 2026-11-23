@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 100">
+  <circle cx="28" cy="40" r="10" fill="#FFC72C"/>
+  <circle cx="44" cy="30" r="10" fill="#E8175D"/>
+  <circle cx="62" cy="30" r="10" fill="#9B26AF"/>
+  <circle cx="78" cy="40" r="10" fill="#00A3E0"/>
+  <circle cx="86" cy="58" r="10" fill="#00A850"/>
+  <circle cx="53" cy="62" r="16" fill="#FFFFFF"/>
+  <text x="105" y="58" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="800" font-size="28">peacock</text>
+</svg>

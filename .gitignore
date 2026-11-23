@@ -1,0 +1,56 @@
+# v0 sandbox internal files
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.design-cache/
+.v0-trash/
+.vercel/
+
+# Dependencies
+node_modules/
+
+# Next.js build output
+.next/
+out/
+next-env.d.ts
+
+# Environment variables
+.env*
+!.env.example
+.env*.local
+
+# Android build artifacts
+android/build/
+android/app/build/
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/.cxx/
+*.apk
+*.aab
+
+# Backups and scratch copies
+*.bak
+*.bak/
+*.bak-*/
+*.backup/
+*~/
+backup/
+backups/
+.orig/
+.cwr-real.bak/
+
+# Logs / caches / test output
+*.log
+dev.err
+test-results/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Tooling state
+.freebuff/
+
+# Common ignores
+.DS_Store
+Thumbs.db

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 0 282 100">
+  <path d="M50 15 L20 80 L80 80 Z" fill="#0064FF"/>
+  <path d="M50 28 L32 72 L68 72 Z" fill="#FFFFFF"/>
+  <circle cx="50" cy="50" r="42" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-dasharray="4,8"/>
+  <text x="100" y="58" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="900" font-size="28" letter-spacing="-0.5">Paramount+</text>
+</svg>

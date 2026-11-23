@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 190 100">
+  <rect x="25" y="25" width="22" height="50" rx="11" fill="#FA4616"/>
+  <rect x="52" y="25" width="22" height="50" rx="11" fill="#FFC72C"/>
+  <text x="95" y="62" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="900" font-size="36" letter-spacing="-1">tubi</text>
+</svg>

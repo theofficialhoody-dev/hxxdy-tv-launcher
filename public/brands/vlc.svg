@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 188 100">
+  <path d="M48 20 L56 20 L72 75 L32 75 Z" fill="#FF8800"/>
+  <path d="M44 38 L60 38 L65 52 L39 52 Z" fill="#FFFFFF"/>
+  <path d="M37 60 L67 60 L71 72 L33 72 Z" fill="#FFFFFF"/>
+  <ellipse cx="52" cy="78" rx="28" ry="8" fill="#FF8800"/>
+  <text x="96" y="62" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="900" font-size="34">VLC</text>
+</svg>

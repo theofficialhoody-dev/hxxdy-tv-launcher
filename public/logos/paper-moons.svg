@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 56" fill="none">
+  <defs>
+    <linearGradient id="lunar-glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="70%" stop-color="#f1f5f9" />
+      <stop offset="100%" stop-color="#c084fc" />
+    </linearGradient>
+  </defs>
+  <!-- Crescent moon graphic mark -->
+  <g transform="translate(10, 14)">
+    <circle cx="14" cy="14" r="12" fill="#ffffff" fill-opacity="0.1" />
+    <path d="M 14 2 A 12 12 0 1 0 24 20 A 10 10 0 1 1 14 2 Z" fill="url(#lunar-glow)" />
+    <circle cx="23" cy="8" r="1.5" fill="#c084fc" />
+  </g>
+  <!-- Typography -->
+  <text x="48" y="27" font-family="system-ui, -apple-system, sans-serif" font-size="17" font-weight="800" letter-spacing="4" fill="#ffffff">
+    PAPER
+  </text>
+  <text x="48" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="15" font-weight="600" letter-spacing="9" fill="url(#lunar-glow)">
+    MOONS
+  </text>
+  <line x1="168" y1="41" x2="230" y2="41" stroke="#c084fc" stroke-opacity="0.5" stroke-width="1" />
+</svg>

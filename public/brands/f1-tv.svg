@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="11 20 160 64">
+  <path d="M25 40 L65 40 L50 65 L35 65 Z" fill="#E10600"/>
+  <path d="M55 40 L70 40 L60 65 L45 65 Z" fill="#E10600"/>
+  <text x="80" y="60" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="900" font-size="28" letter-spacing="-1">F1</text>
+  <text x="125" y="60" fill="#E10600" font-family="system-ui, sans-serif" font-weight="900" font-size="24" letter-spacing="1">TV</text>
+</svg>

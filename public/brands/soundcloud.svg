@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 252 100">
+  <path d="M22 60 L22 45 M28 65 L28 40 M34 68 L34 35 M40 70 L40 32 M46 70 L46 32 M52 70 L52 38" stroke="#FF5500" stroke-width="3" stroke-linecap="round"/>
+  <path d="M52 38 C55 30 65 30 70 36 C73 34 82 36 82 46 C86 46 90 52 88 60 C86 68 78 70 74 70 L52 70 Z" fill="#FF5500"/>
+  <text x="100" y="60" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="900" font-size="22" letter-spacing="-0.5">SoundCloud</text>
+</svg>

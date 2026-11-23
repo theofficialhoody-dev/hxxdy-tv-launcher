@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 197 100">
+  <path d="M50 25 L75 50 L50 75 L25 50 Z" fill="#17B2E7"/>
+  <path d="M50 35 L65 50 L50 65 L35 50 Z" fill="#FFFFFF"/>
+  <text x="96" y="62" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="900" font-size="34">kodi</text>
+</svg>

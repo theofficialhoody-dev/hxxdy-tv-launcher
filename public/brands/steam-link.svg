@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 202 100">
+  <circle cx="50" cy="50" r="32" fill="#171A21"/>
+  <circle cx="50" cy="50" r="28" fill="#00ADEE"/>
+  <path d="M50 32 A 18 18 0 1 0 68 50" fill="none" stroke="#FFFFFF" stroke-width="4"/>
+  <circle cx="68" cy="50" r="6" fill="#FFFFFF"/>
+  <circle cx="40" cy="62" r="8" fill="#FFFFFF"/>
+  <text x="96" y="52" fill="#FFFFFF" font-family="system-ui, sans-serif" font-weight="900" font-size="24">STEAM</text>
+  <text x="96" y="72" fill="#00ADEE" font-family="system-ui, sans-serif" font-weight="700" font-size="16" letter-spacing="2">LINK</text>
+</svg>

@@ -1,0 +1,481 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --animate-kenburns: kenburns 14s ease-out forwards;
+  --animate-slide-progress: slide-progress 9s linear forwards;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  color-scheme: light;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  color-scheme: dark;
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    color-scheme: dark;
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.tv-menu-focus button,
+.tv-menu-focus input {
+  scroll-margin: 20px;
+}
+
+.tv-menu-focus button:focus-visible {
+  outline: none;
+}
+
+@keyframes tv-tile-float {
+  0%, 100% {
+    transform: translateY(-4px) scale(1.12);
+  }
+  50% {
+    transform: translateY(-7px) scale(1.13);
+  }
+}
+
+.animate-tv-tile-float {
+  animation: tv-tile-float 1.8s ease-in-out infinite;
+}
+
+@keyframes kenburns {
+  from {
+    transform: scale3d(1.02, 1.02, 1) translateZ(0);
+  }
+  to {
+    transform: scale3d(1.07, 1.07, 1) translateZ(0);
+  }
+}
+
+@keyframes slide-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+
+@keyframes tv-flow {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+/*
+ * The sweeping ring is a rotation, not a gradient redraw: the conic gradient sits on a layer that is
+ * oversized past the card diagonal and then spun with `transform`, so frames only composite. Animating
+ * the gradient angle (registered custom property) repainted the whole ring every frame, which is what
+ * made the shelves stutter on the Cortex-A55.
+ * The ring and the halo share this one animation and one duration, so the hairline and the bloom are
+ * always at the same angle: they orbit in lockstep instead of drifting apart on two cycles.
+ */
+@keyframes tv-ring-spin {
+  from {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+/*
+ * 1.5px rotating gradient outline. It is painted BEHIND the opaque surface and overhangs it by 1.5px,
+ * so only the hairline shows. The usual padding-box XOR border-box mask is not usable here: on the
+ * box's WebView it never clipped, which painted the whole conic gradient across the focused card.
+ * Call sites pass the surface's radius inline, because the wrapper it lives in has none.
+ */
+/*
+ * 1.5px rotating gradient outline. Neither mask form clips on this box: the reference's standard
+ * `mask` / `mask-composite: exclude` pair leaves both layers opaque, and the legacy
+ * `-webkit-mask` / `-webkit-mask-composite: xor` pair does the same (both built and photographed: the
+ * conic flooded the card). So the band is produced geometrically instead - the wrapper overhangs the
+ * surface by 1.5px, the surface stays opaque on top, and only that hairline of conic is left showing.
+ * The wrapper is a sibling INSIDE the card/button container, never a static stage layer.
+ */
+.tv-conic-border {
+  position: absolute;
+  inset: -1.5px;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  transform: translateZ(0);
+}
+
+/*
+ * The spinning layer is a square of twice the surface width, not a copy of the surface's own rect. A
+ * rect at the card's aspect ratio cannot cover the card once it is rotated (a 2.5:1 pill lost its end
+ * caps at 45deg, so the hairline broke as it swept), while the square's spare area is clipped away.
+ */
+.tv-conic-border::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200%;
+  aspect-ratio: 1;
+  background: conic-gradient(
+    var(--tv-glass-border, rgba(255, 255, 255, 0.2)) 0deg,
+    var(--tv-accent, #38bdf8) 70deg,
+    var(--tv-accent-2, #6366f1) 185deg,
+    var(--tv-accent, #38bdf8) 280deg,
+    var(--tv-glass-border, rgba(255, 255, 255, 0.2)) 340deg,
+    var(--tv-glass-border, rgba(255, 255, 255, 0.2)) 360deg
+  );
+  animation: tv-ring-spin var(--tv-ring-duration, 4.2s) linear infinite;
+  will-change: transform;
+}
+
+/*
+ * Diffused conic halo behind an opaque surface: one blurred element whose gradient child spins on the
+ * ring's own keyframes and duration, so the bloom's bright arc rides along with the hairline. The
+ * child is clipped to the surface's shape first, which is why the blur can spill outward as a glow
+ * that still follows the card. Never animate the gradient angle or the filter radius here.
+ */
+.tv-halo-glow {
+  --tv-halo-peak: clamp(0.55, calc(0.82 * var(--tv-glow-scale, 1)), 1);
+  position: absolute;
+  inset: var(--tv-halo-spread, -3px);
+  border-radius: inherit;
+  pointer-events: none;
+  overflow: hidden;
+  filter: blur(var(--tv-halo-blur, 11px));
+  /* Steady peak brightness, as designed: the bloom only orbits, it does not pulse. */
+  opacity: var(--tv-halo-peak);
+  transform: translateZ(0);
+}
+
+.tv-halo-glow::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200%;
+  aspect-ratio: 1;
+  background: conic-gradient(
+    transparent 0deg,
+    var(--tv-accent, #38bdf8) 70deg,
+    var(--tv-accent-2, #6366f1) 185deg,
+    var(--tv-accent, #38bdf8) 280deg,
+    transparent 340deg,
+    transparent 360deg
+  );
+  animation: tv-ring-spin var(--tv-ring-duration, 4.2s) linear infinite;
+  will-change: transform;
+}
+
+/*
+ * While a carousel spring is in flight the row marks its section with [data-settling], and two things
+ * are faked for that window only:
+ *   1. the conic sweep is parked (it resumes at the same angle the moment the card settles), so the
+ *      arc is not regenerated on top of the card's own resize raster;
+ *   2. the live gaussian - a blur of the card's whole silhouette, re-run on every resize frame - is
+ *      swapped for a pre-softened box-shadow replica of the same colours and roughly the same spread.
+ *      A box shadow is drawn analytically into the layer instead of allocating a filter surface.
+ * Both are gone again at rest, so the card you land on shows the untouched design: real 13px bloom,
+ * sweeping.
+ */
+[data-settling] .tv-conic-border::before,
+[data-settling] .tv-halo-glow::before {
+  animation-play-state: paused;
+}
+
+/*
+ * Cheap stand-in for the bloom while a card is in flight: the same envelope, painted as one radial
+ * gradient instead of a gaussian over the card's whole silhouette. The rows mount this INSTEAD of the
+ * real halo for the duration of the spring (see [data-settling] above), so no filtered layer exists to
+ * re-rasterize while the box is changing size.
+ */
+.tv-halo-fake {
+  position: absolute;
+  inset: var(--tv-halo-spread, -3px);
+  border-radius: inherit;
+  pointer-events: none;
+  /*
+   * Two things keep the corners from showing as rectangles while the row slides: the ring fades to
+   * transparent before the box edge (so the corners are empty rather than solid accent), and the box
+   * itself is clipped to the same radius the real halo inherits. The old single-stop gradient painted
+   * solid accent into every corner, which is what flashed as a hard rectangle mid-scroll.
+   */
+  overflow: hidden;
+  background: radial-gradient(
+    closest-side,
+    transparent 52%,
+    var(--tv-accent, #38bdf8) 86%,
+    transparent 100%
+  );
+  opacity: calc(clamp(0.55, 0.82 * var(--tv-glow-scale, 1), 1) * 0.5);
+  transform: translateZ(0);
+}
+
+/*
+ * While the spring runs, the focused card's two-layer cast shadow (a 64px blur over the card's whole
+ * silhouette, re-drawn on every resize frame) collapses to one small shadow. The card is mid-flight,
+ * so the difference reads as motion blur; the full shadow is back the moment it settles.
+ */
+[data-settling] .tv-card-surface {
+  box-shadow: 0 6px 18px -10px rgba(0, 0, 0, 0.85) !important;
+}
+
+/* 400% wide track of 200% tiles: translating by one tile (50%) loops seamlessly. */
+.tv-flow-track {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 400%;
+  background: linear-gradient(
+    90deg,
+    var(--tv-accent, #38bdf8) 0%,
+    var(--tv-accent-2, #6366f1) 50%,
+    var(--tv-accent, #38bdf8) 100%
+  );
+  background-size: 50% 100%;
+  will-change: transform;
+  animation: tv-flow 2.6s linear infinite;
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-kenburns,
+  .tv-conic-border::before,
+  .tv-halo-glow::before,
+  .tv-flow-track {
+    animation: none;
+  }
+}
+
+/* Freezes (not resets) looping animations that are hidden or covered, so the GPU/main thread aren't repainting them. */
+[data-tv-paused] *,
+[data-tv-paused] {
+  animation-play-state: paused !important;
+}
+
+/* Cortex-A55 / Mali: backdrop blur forces offscreen passes every frame, so glass surfaces rely on translucent fills instead. */
+[class*='backdrop-blur'] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+/*
+ * UI graphics quality tiers. The launcher resolves one tier at startup (RAM total, Android's low-RAM
+ * flag, API level) plus the settings override and marks its root with data-quality.
+ *
+ * MEDIUM is the Onn 4K Plus tier and is deliberately VISUALLY IDENTICAL to HIGH: it has no rules here
+ * at all, so every halo blur, conic border, drop-shadow, Ken Burns pan, focus transition and the live
+ * wallpaper behave exactly as designed. Only the invisible work is trimmed elsewhere (Watch Next art
+ * is decoded at ≤1280px in LauncherWebViewClient).
+ *
+ * LOW is the only tier that drops decoration, and only for a device flagged low-RAM / under 1.5GB or
+ * a manual Low pick. Modals write their theme vars inline, hence the .tv-menu-focus !important rule.
+ */
+
+[data-quality='low'] {
+  --tv-glass: #0b0d11 !important;
+  --tv-surface: #0b0d11 !important;
+  --tv-surface-elevated: #161a22 !important;
+  --tv-glass-border: rgba(255, 255, 255, 0.1) !important;
+  --tv-glow-scale: 0 !important;
+}
+
+[data-quality='low'] .tv-menu-focus {
+  --tv-glass: #0b0d11 !important;
+  --tv-surface: #0b0d11 !important;
+  --tv-surface-elevated: #161a22 !important;
+  --tv-glass-border: rgba(255, 255, 255, 0.1) !important;
+  --tv-glow-scale: 0 !important;
+}
+
+/* LOW trades every decorative layer for composite-only frames; border/ring focus styles stay. */
+[data-quality='low'] .tv-conic-border {
+  display: none;
+}
+
+/* The halo is a real blur() pass plus a spinning conic child, so LOW drops it entirely. */
+[data-quality='low'] .tv-halo-glow {
+  display: none;
+}
+
+[data-quality='low'] [class*='drop-shadow'] {
+  filter: none !important;
+}
+
+[data-quality='low'] [class*='transition-[transform,box-shadow]'] {
+  transition-property: transform !important;
+}
+
+[data-quality='low'] .animate-kenburns {
+  animation: none !important;
+}
+
+[data-quality='low'] .tv-flow-track {
+  animation: none !important;
+}
+
+[data-quality='low'] [class*='shadow-['] {
+  box-shadow: none !important;
+}
+
+[data-quality='low'] .tv-menu-focus > div {
+  box-shadow: none !important;
+}
