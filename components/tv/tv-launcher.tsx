@@ -75,6 +75,10 @@ const SMARTTUBE_PACKAGES = ['org.smarttube.stable', 'org.smarttube.beta']
 const isYouTubeItem = (item: ContinueItem) => item.pkg === YOUTUBE_PACKAGE || SMARTTUBE_PACKAGES.includes(item.pkg ?? '') || item.service === 'youtube'
 const ORDER_KEY = 'tv_launcher_apps_order'
 const HIDDEN_KEY = 'tv_launcher_apps_hidden'
+// Row caps: every mounted card is a decoded poster riding a spring, and the box has 2 GB of RAM. The
+// caps live here (not in the rows) so the "1 / N" caption counts exactly what is shown.
+const CONTINUE_LIMIT = 10
+const TASTE_LIMIT = 6
 
 const idOf = (app: LauncherApp): string => app.service ?? app.pkg
 
@@ -219,7 +223,10 @@ export function TvLauncher() {
     () => data.continueItems.filter((item) => !hiddenSet.has(item.id)),
     [data.continueItems, hiddenSet],
   )
-  const continueItems = useMemo(() => visibleContinueItems.filter((item) => !isYouTubeItem(item)).slice(0, 20), [visibleContinueItems])
+  const continueItems = useMemo(
+    () => visibleContinueItems.filter((item) => !isYouTubeItem(item)).slice(0, CONTINUE_LIMIT),
+    [visibleContinueItems],
+  )
   const allThemes = useMemo(() => [...BUILT_IN_THEMES, ...customThemes], [customThemes])
   const currentTheme = useMemo(
     () => allThemes.find((t) => t.id === themeId) || BUILT_IN_THEMES[0],
@@ -943,9 +950,11 @@ export function TvLauncher() {
     next.continueItems = retainUnchangedItems(data.continueItems, next.continueItems, (item) => item.id)
     next.slides = retainUnchangedItems(data.slides, next.slides, (item) => item.id)
     const focusedContinueId = continueItems[indices.continue]?.id
-    const nextContinueItems = next.continueItems.filter((item) => !isYouTubeItem(item) && !hiddenSet.has(item.id)).slice(0, 20)
+    const nextContinueItems = next.continueItems
+      .filter((item) => !isYouTubeItem(item) && !hiddenSet.has(item.id))
+      .slice(0, CONTINUE_LIMIT)
     const focusedContinueIndex = nextContinueItems.findIndex((item) => item.id === focusedContinueId)
-    setData((previous) => JSON.stringify(previous) === JSON.stringify(next) ? previous : next)
+    setData(next)
     setIndices((prev) => ({
       nav: Math.min(prev.nav, Math.max(0, next.nav.length - 1)),
       hero: prev.hero,
@@ -957,7 +966,7 @@ export function TvLauncher() {
     setSlide((s) => (s < next.slides.length ? s : 0))
     // Recommendations follow the newest watch history; the cached deck is reused until the TTL expires.
     refreshTasteItems(next.continueItems).then((changed) => {
-      if (changed) setTaste(tasteItemsForSession())
+      if (changed) setTaste(tasteItemsForSession().slice(0, TASTE_LIMIT))
     })
     return next
   })
@@ -965,7 +974,7 @@ export function TvLauncher() {
   // Initial load, then refresh when the shell reports installs/removals, new Watch Next data, or a Home press.
   useEffect(() => {
     setCustomThemes(getCustomThemes())
-    setTaste(tasteItemsForSession())
+    setTaste(tasteItemsForSession().slice(0, TASTE_LIMIT))
     setSettings(getStoredSettings())
     setDeviceProfile(getDeviceProfile())
     setOrder(readList(ORDER_KEY))
@@ -1079,7 +1088,13 @@ export function TvLauncher() {
       if (left < visibleLeft) shelf.scrollLeft = Math.max(0, left - padding)
       else if (right > visibleRight) shelf.scrollLeft = right - shelf.clientWidth + padding
     }
+  }, [zone, focusedIndex, modalOpen])
 
+  // The stack only moves between shelves: a horizontal step inside a row cannot change that row's top
+  // edge, so reading `offsetTop` (a forced layout) and rewriting the transform on every step was pure
+  // wasted work on the A55.
+  useEffect(() => {
+    if (modalOpen) return
     const stack = stackRef.current
     if (!stack) return
     const section =
@@ -1101,7 +1116,7 @@ export function TvLauncher() {
         ? Math.max(0, section.offsetTop - window.innerHeight * SHELF_ANCHOR[anchorKey])
         : 0
     stack.style.transform = `translate3d(0, ${-offset}px, 0)`
-  }, [zone, focusedIndex, ready, appsList.length, continueItems.length, modalOpen])
+  }, [zone, ready, appsList.length, continueItems.length, modalOpen])
 
   useEffect(() => {
     if (!settings.autoAdvanceHero || launch || heroSlides.length < 2 || zone === 'continue' || zone === 'taste' || zone === 'apps' || zone === 'appsControls' || modalOpen) return
@@ -1361,6 +1376,9 @@ export function TvLauncher() {
           } : undefined}
           onOpenSoundSettings={data.native ? () => {
             if (!openSystem('sound')) setNotice({ key: Date.now(), text: 'Could not open sound settings' })
+          } : undefined}
+          onOpenAmlogicPictureSettings={data.native ? () => {
+            if (!openSystem('amlogic')) setNotice({ key: Date.now(), text: 'Could not open Amlogic picture settings' })
           } : undefined}
           onOpenWifiSettings={data.native ? () => openSystem('wifi') : undefined}
           onOpenAccountSettings={data.native ? () => {

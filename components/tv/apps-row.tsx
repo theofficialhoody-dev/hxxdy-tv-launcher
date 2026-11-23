@@ -236,7 +236,7 @@ export const AppsRow = memo(function AppsRow({
                       style={{ '--tv-halo-spread': '-2px', '--tv-halo-blur': '9px' } as React.CSSProperties}
                     />
                   )}
-                  {/* Sibling of the clipped surface, inside the scaled tile container. */}
+                  {/* Static 1.5px gradient edge, sibling of the clipped surface. */}
                   {(focused || isHolding) && (
                     <span
                       aria-hidden="true"
@@ -319,13 +319,6 @@ export const AppsRow = memo(function AppsRow({
                       aria-hidden="true"
                       className="tv-halo-glow z-0"
                       style={{ '--tv-halo-spread': '-2px', '--tv-halo-blur': '9px' } as React.CSSProperties}
-                    />
-                  )}
-                  {isAllAppsFocused && (
-                    <span
-                      aria-hidden="true"
-                      className="tv-conic-border"
-                      style={{ borderRadius: 'clamp(12px,1vw,22px)' } as React.CSSProperties}
                     />
                   )}
                   {isAllAppsFocused && (

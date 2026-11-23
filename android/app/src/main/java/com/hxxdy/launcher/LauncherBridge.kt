@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.ActivityManager
 import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -23,11 +24,29 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Methods callable from the web UI as `window.LauncherBridge.*` (see lib/native-bridge.ts). */
-class LauncherBridge(private val activity: Activity) {
+class LauncherBridge(
+    private val activity: Activity,
+    private val liveVideo: NativeVideoSurface? = null,
+) {
     private val pm: PackageManager = activity.packageManager
 
+    /**
+     * Serialized payload caches. `PackageManager` and TvProvider are only read when the shell says
+     * their data changed (see [invalidateAllCache] / [invalidateWatchNext]), so re-rendering and
+     * scrolling never issue a provider round trip per component. The UI thread blocks on the bridge
+     * call, so a cache hit is the difference between returning a string and re-querying Android.
+     */
+    private val cacheLock = Any()
+    private var cachedApps: String? = null
+    private var cachedWatchNext: String? = null
+    private var cachedYouTubeHistory: String? = null
+
     @JavascriptInterface
-    fun getApps(): String {
+    fun getApps(): String = synchronized(cacheLock) {
+        cachedApps ?: buildApps().also { cachedApps = it }
+    }
+
+    private fun buildApps(): String {
         val leanback = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER)
         val regular = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         // Leanback entries come first so apps offering both keep their TV activity.
@@ -68,7 +87,11 @@ class LauncherBridge(private val activity: Activity) {
     }
 
     @JavascriptInterface
-    fun getWatchNext(): String {
+    fun getWatchNext(): String = synchronized(cacheLock) {
+        cachedWatchNext ?: buildWatchNext().also { cachedWatchNext = it }
+    }
+
+    private fun buildWatchNext(): String {
         val array = JSONArray()
         if (!hasWatchNextAccess()) return array.toString()
         val rows = ArrayList<Pair<Long, JSONObject>>()
@@ -126,7 +149,11 @@ class LauncherBridge(private val activity: Activity) {
     }
 
     @JavascriptInterface
-    fun getYouTubeHistory(): String {
+    fun getYouTubeHistory(): String = synchronized(cacheLock) {
+        cachedYouTubeHistory ?: buildYouTubeHistory().also { cachedYouTubeHistory = it }
+    }
+
+    private fun buildYouTubeHistory(): String {
         val result = JSONArray()
         if (!hasWatchNextAccess()) return result.toString()
         try {
@@ -182,6 +209,26 @@ class LauncherBridge(private val activity: Activity) {
 
     private fun missingPermissions(): List<String> =
         WATCH_NEXT_PERMISSIONS.filter { activity.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
+
+    /**
+     * Package install/update/removal (or a resume, where the provider observer was unregistered):
+     * every payload can be stale, including the app labels and icons inside the Watch Next rows.
+     */
+    fun invalidateAllCache() {
+        synchronized(cacheLock) {
+            cachedApps = null
+            cachedWatchNext = null
+            cachedYouTubeHistory = null
+        }
+    }
+
+    /** TvProvider reported a change: only the rows it serves are stale. */
+    fun invalidateWatchNext() {
+        synchronized(cacheLock) {
+            cachedWatchNext = null
+            cachedYouTubeHistory = null
+        }
+    }
 
     @JavascriptInterface
     fun getNetwork(): String {
@@ -285,6 +332,16 @@ class LauncherBridge(private val activity: Activity) {
             if (start(Intent(sound).setPackage("com.android.tv.settings")) || start(sound)) return true
             return start(Intent(Settings.ACTION_SETTINGS))
         }
+        if (kind == "amlogic") {
+            // The vendor picture menu (Picture > AI-PQ/AI-SR) has no launchable component on this box:
+            // the only exported entry is this "More Settings" activity, whose list contains Picture.
+            // Verified on the Onn 4K Plus; a wrong component simply returns false and the UI toasts.
+            return start(
+                Intent(Intent.ACTION_MAIN).setComponent(
+                    ComponentName("com.droidlogic.tv.settings", "com.droidlogic.tv.settings.more.MorePrefFragmentActivity")
+                )
+            )
+        }
         val action = when (kind) {
             "wifi", "network" -> Settings.ACTION_WIFI_SETTINGS
             "accounts" -> Settings.ACTION_SYNC_SETTINGS
@@ -297,6 +354,23 @@ class LauncherBridge(private val activity: Activity) {
     @JavascriptInterface
     fun openAppInfo(pkg: String): Boolean =
         start(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", pkg, null)))
+
+    /**
+     * Hardware live wallpaper controls. The web UI decides when the wallpaper belongs on screen
+     * (hero dimmed, no modal, not scrolled into a shelf); the shell only decodes it.
+     */
+    @JavascriptInterface
+    fun playLiveWallpaper(url: String): Boolean = liveVideo?.play(url) ?: false
+
+    @JavascriptInterface
+    fun pauseLiveWallpaper() {
+        liveVideo?.pause()
+    }
+
+    @JavascriptInterface
+    fun stopLiveWallpaper() {
+        liveVideo?.stop()
+    }
 
     private fun wifiLabel(): String {
         // The SSID is only readable with location access, which a launcher shouldn't need.

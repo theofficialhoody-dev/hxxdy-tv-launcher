@@ -7,6 +7,7 @@ import {
   LayoutGrid,
   Monitor,
   Palette,
+  Sparkles,
   RefreshCw,
   RotateCcw,
   Sliders,
@@ -86,6 +87,8 @@ type SettingsModalProps = {
   /** Real Android settings screens; only provided when running inside the native shell. */
   onOpenSystemSettings?: () => void
   onOpenDisplaySettings?: () => void
+  /** Amlogic vendor picture menu (Picture > AI-PQ/AI-SR); native shell only. */
+  onOpenAmlogicPictureSettings?: () => void
   onOpenSoundSettings?: () => void
   onOpenWifiSettings?: () => void
   onOpenAccountSettings?: () => void
@@ -164,6 +167,7 @@ export function SettingsModal({
   currentTheme,
   onOpenSystemSettings,
   onOpenDisplaySettings,
+  onOpenAmlogicPictureSettings,
   onOpenSoundSettings,
   onOpenWifiSettings,
   onOpenAccountSettings,
@@ -696,12 +700,20 @@ export function SettingsModal({
                   </span>
                 </div>
 
-                {onOpenDisplaySettings && (
-                  <div className="pt-1">
-                    <button type="button" onClick={onOpenDisplaySettings} className={actionButtonClass}>
-                      <Monitor className="size-3.5" />
-                      <span>Open Android Display Settings</span>
-                    </button>
+                {(onOpenDisplaySettings || onOpenAmlogicPictureSettings) && (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {onOpenDisplaySettings && (
+                      <button type="button" onClick={onOpenDisplaySettings} className={actionButtonClass}>
+                        <Monitor className="size-3.5" />
+                        <span>Open Android Display Settings</span>
+                      </button>
+                    )}
+                    {onOpenAmlogicPictureSettings && (
+                      <button type="button" onClick={onOpenAmlogicPictureSettings} className={actionButtonClass}>
+                        <Sparkles className="size-3.5" />
+                        <span>Amlogic AI Picture (AI-SR)</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

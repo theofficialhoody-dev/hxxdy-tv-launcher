@@ -10,17 +10,35 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.database.ContentObserver
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.webkit.WebView
+import android.widget.FrameLayout
 
 class MainActivity : Activity() {
     private lateinit var webView: WebView
+    private lateinit var webClient: LauncherWebViewClient
+    private lateinit var launcherBridge: LauncherBridge
+
+    /**
+     * Hardware live wallpaper. It is only wired up when the shell supports it; the surface itself is
+     * always the bottom-most view, and the WebView paints over it opaquely except while the native
+     * video is on screen (see `data-native-video` in globals.css).
+     */
+    private lateinit var liveVideo: NativeVideoSurface
 
     private val packageReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) = dispatchToWeb("launcher:refresh")
+        override fun onReceive(context: Context, intent: Intent) {
+            // Labels, icons and launch intents are baked into every cached shell payload.
+            launcherBridge.invalidateAllCache()
+            webClient.invalidateIcons()
+            dispatchToWeb("launcher:refresh")
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -28,8 +46,18 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
 
+        liveVideo = NativeVideoSurface(this)
+
         webView = WebView(this).apply {
-            setBackgroundColor(Color.BLACK)
+            // Transparent, not black: the window must let the wallpaper surface through wherever the
+            // page is see-through. The page itself stays opaque unless the native video is showing.
+            setBackgroundColor(Color.TRANSPARENT)
+            // Android 14 trims the renderer of an app it thinks is idle; this launcher owns the screen
+            // whenever it is visible, and its compositor must not lose priority to a waking background
+            // service. Hardware acceleration and the transparent SurfaceView composite are untouched.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false)
+            }
             isFocusable = true
             settings.apply {
                 javaScriptEnabled = true
@@ -39,11 +67,22 @@ class MainActivity : Activity() {
                 mediaPlaybackRequiresUserGesture = false
                 setSupportZoom(false)
             }
-            webViewClient = LauncherWebViewClient(this@MainActivity) { recreate() }
-            addJavascriptInterface(LauncherBridge(this@MainActivity), "LauncherBridge")
+            webClient = LauncherWebViewClient(this@MainActivity) { recreate() }
+            webViewClient = webClient
+            launcherBridge = LauncherBridge(this@MainActivity, liveVideo)
+            addJavascriptInterface(launcherBridge, "LauncherBridge")
             loadUrl("https://${LauncherBridge.HOST}/index.html")
         }
-        setContentView(webView)
+
+        // A transparent window is what lets the SurfaceView show through; the page supplies its own
+        // opaque background in every state except the live-wallpaper one.
+        window.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        setContentView(
+            FrameLayout(this).apply {
+                addView(liveVideo.view, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+                addView(webView, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
+            },
+        )
 
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
@@ -64,6 +103,7 @@ class MainActivity : Activity() {
     private val refreshRows = Runnable { dispatchToWeb("launcher:refresh") }
     private val watchNextObserver = object : ContentObserver(refreshHandler) {
         override fun onChange(selfChange: Boolean) {
+            launcherBridge.invalidateWatchNext()
             refreshHandler.removeCallbacks(refreshRows)
             refreshHandler.postDelayed(refreshRows, 700)
         }
@@ -71,7 +111,9 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        // Network state and Watch Next rows change while another app is in front.
+        // Network state and Watch Next rows change while another app is in front, and the provider
+        // observer is unregistered while paused: resume is the explicit refresh point.
+        launcherBridge.invalidateAllCache()
         dispatchToWeb("launcher:refresh")
         dispatchToWeb("launcher:resume")
         if (LauncherBridge.WATCH_NEXT_PERMISSIONS.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }) {
@@ -82,6 +124,8 @@ class MainActivity : Activity() {
     override fun onPause() {
         refreshHandler.removeCallbacks(refreshRows)
         contentResolver.unregisterContentObserver(watchNextObserver)
+        // Never decode the wallpaper behind another app.
+        liveVideo.pause()
         super.onPause()
     }
 
@@ -92,6 +136,7 @@ class MainActivity : Activity() {
 
     override fun onDestroy() {
         unregisterReceiver(packageReceiver)
+        liveVideo.release()
         webView.destroy()
         super.onDestroy()
     }

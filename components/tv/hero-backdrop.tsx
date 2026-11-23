@@ -1,11 +1,18 @@
 'use client'
 
-import { memo, useEffect, useRef } from 'react'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { AnimatePresence, motion } from 'motion/react'
+import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import type { ResolvedQuality } from '@/lib/device-quality'
 import type { HeroSlide } from '@/lib/launcher-data'
+import { hasNativeLiveWallpaper, pauseLiveWallpaper, playLiveWallpaper, stopLiveWallpaper } from '@/lib/native-bridge'
+
+/** Immersive art that has already been requested, kept alive so a decoded frame is ready to show. */
+const decodedImmersive = new Map<string, HTMLImageElement>()
+
+/** Same asset the <video> fallback plays; the shell maps it onto the APK's www/ assets. */
+const WALLPAPER_URL = '/assets/aistudio/goku-black-wallpaper.mp4'
 
 export const HeroBackdrop = memo(function HeroBackdrop({
   slides,
@@ -30,16 +37,82 @@ export const HeroBackdrop = memo(function HeroBackdrop({
   const videoRef = useRef<HTMLVideoElement>(null)
   const immersiveActive = Boolean(immersiveBackdrop)
   const videoEnabled = liveWallpaper !== false && quality !== 'low'
+  /** The shell decodes the wallpaper on a native SurfaceView; a browser keeps the <video> path. */
+  const [nativeVideo, setNativeVideo] = useState(false)
+  /** The wallpaper belongs on screen only on the dimmed hero: never in a shelf, modal or overlay. */
+  const wallpaperActive = dimmed && videoEnabled && !paused && !immersiveActive
 
-  // Manage video playback based on whether user is browsing continue watching / my apps (paused during immersive list)
+  // Layered cross-fade: the previous backdrop stays fully opaque underneath until the next artwork has
+  // decoded and faded in, so changing a card can never expose the black base through a gap.
+  const [layers, setLayers] = useState<{ src: string; ready: boolean }[]>(() =>
+    immersiveBackdrop ? [{ src: immersiveBackdrop, ready: false }] : [],
+  )
+  const pruneRef = useRef<number | undefined>(undefined)
+
+  const markReady = useCallback((src: string) => {
+    setLayers((prev) => prev.map((layer) => (layer.src === src && !layer.ready ? { ...layer, ready: true } : layer)))
+    window.clearTimeout(pruneRef.current)
+    // The cross-fade runs 450 ms; older frames are dropped once the newest one is fully opaque.
+    pruneRef.current = window.setTimeout(() => setLayers((prev) => prev.slice(-1)), 520)
+  }, [])
+
   useEffect(() => {
+    if (!immersiveBackdrop) {
+      // Hold the last frame while the whole immersive stage fades out above the hero.
+      pruneRef.current = window.setTimeout(() => setLayers([]), 560)
+      return () => window.clearTimeout(pruneRef.current)
+    }
+    setLayers((prev) =>
+      prev[prev.length - 1]?.src === immersiveBackdrop
+        ? prev
+        : [...prev, { src: immersiveBackdrop, ready: false }].slice(-2),
+    )
+  }, [immersiveBackdrop])
+
+  useEffect(() => () => window.clearTimeout(pruneRef.current), [])
+
+  // Ready means decoded, not merely requested: only then does the new layer fade in over the old one.
+  useEffect(() => {
+    const src = immersiveBackdrop
+    if (!src) return
+    let image = decodedImmersive.get(src)
+    if (!image) {
+      image = new window.Image()
+      image.decoding = 'async'
+      image.src = src
+      decodedImmersive.set(src, image)
+    }
+    const cached = image
+    if (cached.complete && cached.naturalWidth > 0) {
+      markReady(src)
+      return
+    }
+    const onLoad = () => markReady(src)
+    cached.addEventListener('load', onLoad)
+    return () => cached.removeEventListener('load', onLoad)
+  }, [immersiveBackdrop, markReady])
+
+  useEffect(() => {
+    setNativeVideo(hasNativeLiveWallpaper())
+  }, [])
+
+  // Manage video playback based on whether user is browsing continue watching / my apps (paused during immersive list).
+  // With the native surface the page turns see-through instead of playing anything in the DOM, which is
+  // what keeps a 1080p decode out of Chromium while the wallpaper is on screen.
+  useEffect(() => {
+    if (nativeVideo) {
+      document.documentElement.dataset.nativeVideo = wallpaperActive ? 'true' : 'false'
+      if (wallpaperActive) playLiveWallpaper(WALLPAPER_URL)
+      else pauseLiveWallpaper()
+      return
+    }
     const video = videoRef.current
     if (!video) return
 
     video.defaultMuted = true
     video.muted = true
 
-    if (dimmed && videoEnabled && !paused && !immersiveActive) {
+    if (wallpaperActive) {
       const playPromise = video.play()
       if (playPromise !== undefined) {
         playPromise.catch(() => {
@@ -49,7 +122,36 @@ export const HeroBackdrop = memo(function HeroBackdrop({
     } else {
       video.pause()
     }
-  }, [dimmed, videoEnabled, paused, immersiveActive])
+  }, [nativeVideo, wallpaperActive])
+
+  // Backgrounded launcher: stop the decoder even if the page never gets a chance to re-render, then
+  // pick it back up on the shell's own resume event (the effect above only runs when a prop changes,
+  // so returning from Home would otherwise leave the last frame frozen).
+  useEffect(() => {
+    if (!nativeVideo) return
+    const resume = () => {
+      if (wallpaperActive) playLiveWallpaper(WALLPAPER_URL)
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') pauseLiveWallpaper()
+      else resume()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('launcher:resume', resume)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('launcher:resume', resume)
+    }
+  }, [nativeVideo, wallpaperActive])
+
+  useEffect(
+    () => () => {
+      if (!hasNativeLiveWallpaper()) return
+      stopLiveWallpaper()
+      delete document.documentElement.dataset.nativeVideo
+    },
+    [],
+  )
 
   return (
     <div className="absolute inset-0 overflow-hidden" aria-hidden="true" data-tv-paused={paused || undefined}>
@@ -64,7 +166,9 @@ export const HeroBackdrop = memo(function HeroBackdrop({
             key={slide.id}
             className={cn(
               'absolute inset-0 transition-opacity duration-500 ease-out',
-              active && !immersiveActive ? 'opacity-100' : 'opacity-0',
+              // The wallpaper covers this art exactly when it is on screen, so hiding it there is a
+              // no-op visually - it just stops Chromium painting a full-bleed image under the video.
+              active && !immersiveActive && !(nativeVideo && wallpaperActive) ? 'opacity-100' : 'opacity-0',
             )}
           >
             <Image
@@ -122,27 +226,48 @@ export const HeroBackdrop = memo(function HeroBackdrop({
               dimmed && !immersiveActive ? 'opacity-100' : 'pointer-events-none opacity-0',
             )}
           >
-              <video
-                ref={videoRef}
-                loop
-                muted
-                playsInline
-                preload="metadata"
-                poster="/assets/aistudio/goku-black-poster.jpg"
-                className="absolute inset-0 h-full w-full object-cover"
-              >
-                <source src="/assets/aistudio/goku-black-wallpaper.mp4" type="video/mp4" />
-              </video>
+              {!nativeVideo && (
+                <video
+                  ref={videoRef}
+                  loop
+                  muted
+                  playsInline
+                  preload="metadata"
+                  poster="/assets/aistudio/goku-black-poster.jpg"
+                  className="absolute inset-0 h-full w-full object-cover"
+                >
+                  <source src={WALLPAPER_URL} type="video/mp4" />
+                </video>
+              )}
 
-              {/* Cinematic Backdrop Scrim Overlays: Balanced for maximum wallpaper visibility and card text legibility */}
-              <div className="absolute inset-0 bg-black/30" />
-            <div className="absolute inset-x-0 top-0 h-[22vh] bg-gradient-to-b from-black/75 to-transparent" />
-            <div
-              className="absolute inset-x-0 bottom-0 h-[48vh]"
-              style={{
-                background: 'linear-gradient(to top, var(--tv-bg, #000000) 0%, rgba(0,0,0,0.38) 45%, transparent 100%)',
-              }}
-            />
+              {/* Scrim. Over the live video the three passes are ONE element: normal-blend backgrounds
+                  composite identically, so it is the same picture with two fewer full-screen surfaces
+                  blended into every frame. Everywhere else the original stack is kept untouched. */}
+              {nativeVideo && wallpaperActive ? (
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                    backgroundImage:
+                      'linear-gradient(to bottom, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0) 100%), linear-gradient(to top, var(--tv-bg, #000000) 0%, rgba(0,0,0,0.38) 45%, transparent 100%)',
+                    backgroundSize: '100% 22vh, 100% 48vh',
+                    backgroundPosition: 'left top, left bottom',
+                    backgroundRepeat: 'no-repeat, no-repeat',
+                  }}
+                />
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-black/30" />
+                  <div className="absolute inset-x-0 top-0 h-[22vh] bg-gradient-to-b from-black/75 to-transparent" />
+                  <div
+                    className="absolute inset-x-0 bottom-0 h-[48vh]"
+                    style={{
+                      background:
+                        'linear-gradient(to top, var(--tv-bg, #000000) 0%, rgba(0,0,0,0.38) 45%, transparent 100%)',
+                    }}
+                  />
+                </>
+              )}
             <div
               className="pointer-events-none absolute inset-0"
               style={{
@@ -175,30 +300,27 @@ export const HeroBackdrop = memo(function HeroBackdrop({
         )}
         style={{ backgroundColor: 'var(--tv-bg, #000000)' }}
       >
-        <AnimatePresence mode="sync">
-          {immersiveBackdrop && (
-            <motion.div
-              key={immersiveBackdrop}
-              initial={{ opacity: 0, scale: 1.02 }}
-              animate={{ opacity: 1, scale: 1.06 }}
-              exit={{ opacity: 0 }}
-              transition={{
-                opacity: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
-                scale: { duration: 10, ease: 'easeOut' },
-              }}
-              className="absolute inset-0 will-change-transform"
-            >
-              <Image
-                src={immersiveBackdrop}
-                alt=""
-                fill
-                sizes="100vw"
-                referrerPolicy="no-referrer"
-                className="object-cover object-center"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {layers.map((layer) => (
+          <motion.div
+            key={layer.src}
+            initial={{ opacity: 0, scale: 1.02 }}
+            animate={{ opacity: layer.ready ? 1 : 0, scale: 1.06 }}
+            transition={{
+              opacity: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+              scale: { duration: 10, ease: 'easeOut' },
+            }}
+            className={cn('absolute inset-0', immersiveActive && 'will-change-transform')}
+          >
+            <Image
+              src={layer.src}
+              alt=""
+              fill
+              sizes="100vw"
+              referrerPolicy="no-referrer"
+              className="object-cover object-center"
+            />
+          </motion.div>
+        ))}
 
         {/* Immersive Stage Scrims & Theme Studio Accent Aura */}
         <div

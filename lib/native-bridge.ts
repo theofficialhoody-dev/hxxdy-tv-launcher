@@ -37,6 +37,9 @@ type Bridge = {
   adjustMediaVolume(direction: number): boolean
   openSystem(kind: string): boolean
   openAppInfo(pkg: string): boolean
+  playLiveWallpaper?(url: string): boolean
+  pauseLiveWallpaper?(): void
+  stopLiveWallpaper?(): void
 }
 
 declare global {
@@ -45,7 +48,8 @@ declare global {
   }
 }
 
-export type SystemTarget = 'settings' | 'wifi' | 'network' | 'accounts' | 'display' | 'sound'
+/** `amlogic` is the vendor "More Settings" list that holds Picture > AI-PQ/AI-SR (Amlogic boxes). */
+export type SystemTarget = 'settings' | 'wifi' | 'network' | 'accounts' | 'display' | 'sound' | 'amlogic'
 
 export type NetworkInfo = { connected: boolean; label: string; internet?: boolean; vpn?: boolean; ipAddress?: string | null }
 export type DisplayInfo = { available: boolean; width?: number; height?: number; refreshRate?: number; hdrTypes?: string[] }
@@ -214,4 +218,24 @@ export function openSystem(kind: SystemTarget): boolean {
 
 export function openAppInfo(pkg: string): boolean {
   return bridge()?.openAppInfo(pkg) ?? false
+}
+
+/** True when the installed shell decodes the live wallpaper on a native SurfaceView. */
+export function hasNativeLiveWallpaper(): boolean {
+  return typeof bridge()?.playLiveWallpaper === 'function'
+}
+
+export function playLiveWallpaper(url: string): boolean {
+  const b = bridge()
+  return typeof b?.playLiveWallpaper === 'function' ? b.playLiveWallpaper(url) : false
+}
+
+export function pauseLiveWallpaper(): void {
+  const b = bridge()
+  if (typeof b?.pauseLiveWallpaper === 'function') b.pauseLiveWallpaper()
+}
+
+export function stopLiveWallpaper(): void {
+  const b = bridge()
+  if (typeof b?.stopLiveWallpaper === 'function') b.stopLiveWallpaper()
 }

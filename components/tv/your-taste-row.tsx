@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Play, Star } from 'lucide-react'
-import { memo, useEffect, useState, type Ref } from 'react'
+import { memo, useEffect, type Ref } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { cn, signedOffset } from '@/lib/utils'
 import { services, type TasteItem } from '@/lib/launcher-data'
@@ -28,12 +28,46 @@ type TasteCardProps = {
   offset: number
   rowFocused: boolean
   revealed: boolean
-  /** True for the ~520 ms a spring is in flight; the card swaps its blurred bloom for a gradient. */
-  settling: boolean
   registerRef: (index: number) => (el: HTMLElement | null) => void
   onSelect: (index: number) => void
   onHover: (index: number) => void
   onActivate: (index: number) => void
+}
+
+/**
+ * HeroBackdrop swaps the immersive full-screen art on every press, so the deck's own artwork is decoded
+ * in advance: the cross-fade then always has the next frame ready and never shows the black base.
+ */
+const preloadedArtwork = new Map<string, HTMLImageElement>()
+
+function preloadArtwork(items: TasteItem[]) {
+  if (typeof window === 'undefined') return
+  const keep = new Set<string>()
+  for (const item of items) {
+    for (const src of [item.backdrop, item.image]) {
+      if (!src) continue
+      keep.add(src)
+      if (preloadedArtwork.has(src)) continue
+      const image = new window.Image()
+      image.decoding = 'async'
+      image.src = src
+      preloadedArtwork.set(src, image)
+    }
+  }
+  // The deck is capped at six picks, so frames from a previous deck are dropped instead of holding
+  // every artwork the session ever decoded (2 GB box).
+  for (const src of preloadedArtwork.keys()) if (!keep.has(src)) preloadedArtwork.delete(src)
+}
+
+/** Provider mark: a catalogue brand when the pick has one, otherwise a native app's own icon. */
+function TasteServiceMark({ item, className }: { item: TasteItem; className?: string }) {
+  return (
+    <ServiceLogo
+      id={item.serviceIcon ? undefined : item.service}
+      icon={item.serviceIcon}
+      className={className}
+    />
+  )
 }
 
 const TasteDeckCard = memo(function TasteDeckCard({
@@ -42,13 +76,14 @@ const TasteDeckCard = memo(function TasteDeckCard({
   offset,
   rowFocused,
   revealed,
-  settling,
   registerRef,
   onSelect,
   onHover,
   onActivate,
 }: TasteCardProps) {
   const abs = Math.abs(offset)
+  // Seven cards: centre, ±1, ±2 and ±3. The outer pair rides the same spring to `opacity: 0`, so a card
+  // enters and leaves the visible arc by gliding instead of popping in at ±2.
   if (abs > 3) return null
 
   const isCenter = offset === 0
@@ -93,9 +128,12 @@ const TasteDeckCard = memo(function TasteDeckCard({
         mass: 0.92,
       }}
       style={{ zIndex, transformOrigin }}
+      // Only the two cards that move during a step are promoted, and only while this deck is focused:
+      // the ±2/±3 pair never animates in place, so promoting it just pinned layers in Graphics memory.
       className={cn(
-        'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 will-change-transform',
-        abs >= 3 && 'pointer-events-none',
+        'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+        rowFocused && abs <= 1 && 'will-change-transform',
+        abs > 2 && 'pointer-events-none',
       )}
     >
       <button
@@ -116,21 +154,22 @@ const TasteDeckCard = memo(function TasteDeckCard({
         }
         className="group relative block w-[clamp(145px,20.2vw,340px)] text-left outline-none"
       >
-        {focused &&
-          (settling ? (
-            <span
-              aria-hidden="true"
-              className="tv-halo-fake z-0 rounded-[clamp(16px,1.5vw,26px)]"
-              style={{ '--tv-halo-spread': '-3px' } as React.CSSProperties}
-            />
-          ) : (
-            <span
-              aria-hidden="true"
-              className="tv-halo-glow z-0 rounded-[clamp(16px,1.5vw,26px)]"
-              style={{ '--tv-halo-spread': '-3px', '--tv-halo-blur': '13px' } as React.CSSProperties}
-            />
-          ))}
-        {/* Sibling of the clipped surface, inside the card container, so the ring tracks scale and tilt. */}
+        {/* This card's box never changes size (fixed aspect-[3/4] width), so the deck only animates GPU
+            transforms and the 13px bloom can sweep continuously at full fidelity, as in the reference. */}
+        {focused && (
+          <span
+            aria-hidden="true"
+            className="tv-halo-glow z-0"
+            style={
+              {
+                                  '--tv-halo-spread': '-3px',
+                  '--tv-halo-blur': '8px',
+                borderRadius: 'clamp(16px,1.5vw,26px)',
+              } as React.CSSProperties
+            }
+          />
+        )}
+        {/* Static 1.5px gradient edge, sibling of the clipped surface, so it tracks scale and tilt. */}
         {focused && (
           <span
             aria-hidden="true"
@@ -176,15 +215,15 @@ const TasteDeckCard = memo(function TasteDeckCard({
           {/* Quiet Service Attribution across Visible Posters (top-left on full cards, inner corner on outer cards) */}
           {isCenter ? (
             <div className="pointer-events-none absolute left-[clamp(12px,1.15vw,20px)] top-[clamp(12px,1.15vw,20px)] z-10">
-              <ServiceLogo
-                id={item.service}
+              <TasteServiceMark
+                item={item}
                 className="h-[clamp(13px,1.15vw,20px)] w-auto max-w-[clamp(44px,3.8vw,68px)] opacity-92 drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
               />
             </div>
           ) : abs === 1 ? (
             <div className="pointer-events-none absolute left-[clamp(10px,1vw,18px)] top-[clamp(10px,1vw,18px)] z-10">
-              <ServiceLogo
-                id={item.service}
+              <TasteServiceMark
+                item={item}
                 className="h-[clamp(11px,0.98vw,17px)] w-auto max-w-[clamp(36px,3.2vw,56px)] opacity-80"
               />
             </div>
@@ -195,14 +234,14 @@ const TasteDeckCard = memo(function TasteDeckCard({
                 isLeft ? 'right-[clamp(10px,0.95vw,16px)]' : 'left-[clamp(10px,0.95vw,16px)]',
               )}
             >
-              <ServiceLogo
-                id={item.service}
+              <TasteServiceMark
+                item={item}
                 className="h-[clamp(10px,0.86vw,15px)] w-auto max-w-[clamp(32px,2.8vw,48px)] opacity-75"
               />
             </div>
           )}
 
-          {/* Center Play Control matching Continue Watching (synchronized sweeping outer halo + conic border) */}
+          {/* Center Play Control matching Continue Watching: static ring only, the bloom is the card's. */}
           {isCenter && (
             <div
               className={cn(
@@ -211,13 +250,6 @@ const TasteDeckCard = memo(function TasteDeckCard({
               )}
             >
               <div className="relative size-[clamp(36px,2.75vw,50px)] rounded-full isolate">
-                {focused && (
-                  <span
-                    aria-hidden="true"
-                    className="tv-halo-glow z-0"
-                    style={{ '--tv-halo-spread': '-2px', '--tv-halo-blur': '7px' } as React.CSSProperties}
-                  />
-                )}
                 {/* Same pattern as the hero Play pill: hairline behind, opaque pill on top. */}
                 {focused && (
                   <span
@@ -229,7 +261,10 @@ const TasteDeckCard = memo(function TasteDeckCard({
                 <div
                   className="relative z-10 flex size-full items-center justify-center rounded-full shadow-[0_12px_28px_rgba(0,0,0,0.75)]"
                   style={{
-                    backgroundColor: focused ? 'var(--tv-surface, rgba(10,11,16,0.94))' : 'rgba(0,0,0,0.62)',
+                    // Same opaque surface + accent bloom as the hero Play pill.
+                    background: focused
+                      ? 'radial-gradient(circle at 30% 25%, var(--tv-glow, rgba(56,189,248,0.22)), transparent 72%), var(--tv-surface, rgba(10,11,16,0.96))'
+                      : 'rgba(0,0,0,0.62)',
                     boxShadow: focused ? undefined : 'inset 0 0 0 1px var(--tv-glass-border, rgba(255,255,255,0.24))',
                   }}
                 >
@@ -302,13 +337,11 @@ function YourTasteRowBase({
   const safeIndex = Math.max(0, Math.min(items.length - 1, activeIndex))
   const activeItem = items[safeIndex]
 
-  // Same trick as Continue Watching: hold the sweep still only while the 215-spring is in flight.
-  const [settling, setSettling] = useState(false)
+  // Decode the whole deck up front so D-pad presses only ever cross-fade cached frames.
   useEffect(() => {
-    setSettling(true)
-    const timer = window.setTimeout(() => setSettling(false), 520)
-    return () => window.clearTimeout(timer)
-  }, [safeIndex])
+    preloadArtwork(items)
+  }, [items])
+
   const activeServiceName = activeItem ? (activeItem.service && services[activeItem.service]?.name) || 'Stream' : ''
 
   return (
@@ -321,7 +354,6 @@ function YourTasteRowBase({
         y: revealed ? 0 : 12,
       }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      data-settling={settling ? '' : undefined}
       className="relative min-h-dvh w-full overflow-x-clip py-[1.2vh]"
     >
       {/* Clean Anchored Section Header (matches Continue Watching rhythm, separated cleanly from card deck) */}
@@ -352,7 +384,6 @@ function YourTasteRowBase({
             offset={signedOffset(index, safeIndex, items.length)}
             rowFocused={rowFocused}
             revealed={revealed}
-            settling={settling}
             registerRef={registerRef}
             onSelect={onSelect}
             onHover={onHover}
@@ -377,7 +408,7 @@ function YourTasteRowBase({
                   active ? 'w-[clamp(22px,1.8vw,34px)]' : 'w-[clamp(5px,0.38vw,7px)] bg-white/25 hover:bg-white/45',
                 )}
               >
-                {active && <FlowFill />}
+                {active && <FlowFill active={rowFocused} />}
               </button>
             )
           })}
@@ -404,8 +435,8 @@ function YourTasteRowBase({
               {/* Crisp Unboxed Service + Metadata Strip */}
               <div className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2.5 gap-y-1 text-[clamp(11.5px,0.85vw,15px)] font-medium text-white/78 [text-shadow:0_1px_8px_rgba(0,0,0,0.9)]">
                 <span className="inline-flex items-center gap-1.5 text-white/92">
-                  <ServiceLogo
-                    id={activeItem.service}
+                  <TasteServiceMark
+                    item={activeItem}
                     className="h-[clamp(11px,0.88vw,15px)] w-auto max-w-[clamp(34px,2.8vw,48px)]"
                   />
                   <span>{activeServiceName}</span>

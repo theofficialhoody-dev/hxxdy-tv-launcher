@@ -7,6 +7,7 @@ import type { HeroSlide } from '@/lib/launcher-data'
 import { SHELF_ANCHOR } from '@/lib/layout'
 import { ServiceBadge } from './service-logo'
 import { FlowFill } from './flow-fill'
+import { cachedLogoIsBlack, probeLoadedLogo } from '@/lib/logo-luminance'
 
 type HeroInfoProps = {
   slides: HeroSlide[]
@@ -219,7 +220,7 @@ export const HeroInfo = memo(function HeroInfo({
                         boxShadow: '0 0 10px var(--tv-accent, #38bdf8), 0 0 16px var(--tv-glow, rgba(56,189,248,0.35))',
                       }}
                     >
-                      <FlowFill />
+                      <FlowFill active={visible && !paused} />
                     </span>
                   )}
                 </span>
@@ -245,43 +246,14 @@ export const HeroInfo = memo(function HeroInfo({
 })
 
 /**
- * Transparent title art, tuned for dark backgrounds. Logos that are mostly dark would vanish on the
- * backdrop, so they are flattened to white; colourful or light logos are left untouched.
+ * Transparent title art, tuned for dark backgrounds. Only a monochrome BLACK wordmark (Nocturne) is
+ * flattened to white; anything with colour in it (Spider-Man) keeps its artwork untouched. The verdict
+ * lives in the shared cache (`lib/logo-luminance.ts`), so the hero and the shelf cards agree on every
+ * wordmark and no URL is ever probed twice.
  */
-/**
- * The verdict is per URL and cached for the session. The hero remounts this component on every
- * slide change, and the readback is a synchronous read of a decoded image plus a fresh canvas.
- */
-const LOGO_LUMINANCE = new Map<string, boolean>()
-let logoProbe: HTMLCanvasElement | null = null
-
-function probeLogoIsLight(img: HTMLImageElement): boolean | null {
-  try {
-    logoProbe ??= document.createElement('canvas')
-    const c = logoProbe
-    c.width = 48
-    c.height = Math.max(1, Math.round((48 * img.naturalHeight) / Math.max(1, img.naturalWidth)))
-    const ctx = c.getContext('2d', { willReadFrequently: true })
-    if (!ctx) return null
-    ctx.clearRect(0, 0, c.width, c.height)
-    ctx.drawImage(img, 0, 0, c.width, c.height)
-    const d = ctx.getImageData(0, 0, c.width, c.height).data
-    let sum = 0
-    let n = 0
-    for (let i = 0; i < d.length; i += 4) {
-      if (d[i + 3] < 128) continue
-      sum += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255
-      n++
-    }
-    return n > 0 ? sum / n < 0.35 : false
-  } catch {
-    // tainted canvas (no CORS): leave the logo as is, and remember it so it is not retried
-    return false
-  }
-}
-
 function TitleLogo({ src, title }: { src: string; title: string }) {
-  const [light, setLight] = useState(() => LOGO_LUMINANCE.get(src) ?? false)
+  // The hero only renders after `tv-launcher`'s client-only `ready` effect, so this is not an SSR read.
+  const [black, setBlack] = useState(() => cachedLogoIsBlack(src))
   const [attempt, setAttempt] = useState(0)
   if (attempt > 1) {
     return (
@@ -299,15 +271,13 @@ function TitleLogo({ src, title }: { src: string; title: string }) {
       onError={() => setAttempt((a) => a + 1)}
       className={cn(
         'size-full object-contain object-left-bottom drop-shadow-[0_8px_36px_rgba(0,0,0,0.78)]',
-        light && 'brightness-0 invert',
+        black && 'brightness-0 invert',
       )}
       decoding="async"
       onLoad={(e) => {
-        if (LOGO_LUMINANCE.has(src)) return
-        const verdict = probeLogoIsLight(e.currentTarget)
-        if (verdict === null) return
-        LOGO_LUMINANCE.set(src, verdict)
-        if (verdict) setLight(true)
+        // No extra request and no extra decode: this is the image the hero already shows.
+        const verdict = probeLoadedLogo(src, e.currentTarget)
+        if (verdict !== null && verdict !== black) setBlack(verdict)
       }}
     />
   )

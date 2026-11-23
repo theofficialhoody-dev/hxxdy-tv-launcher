@@ -535,7 +535,7 @@ export const continueWatching: ContinueItem[] = [
     detail: 'Film · 2025',
     remaining: '49m left',
     progress: 0.48,
-    image: '/thumbs/paper-moons.png',
+    image: '/thumbs/paper-moons.webp',
     service: 'disney-plus',
     logo: '/logos/paper-moons.svg',
     quality: '4K Vision',
@@ -611,6 +611,8 @@ export type TasteItem = {
   logoIsAlpha?: boolean
   /** Picks are not tied to a subscription app, so attribution stays optional. */
   service?: ServiceId
+  /** Native app icon for a provider whose catalogue has no brand mark (Nuvio). */
+  serviceIcon?: string
   /** Nuvio deep link for the title, when the pick came from its catalog. */
   intentUri?: string
   synopsis: string

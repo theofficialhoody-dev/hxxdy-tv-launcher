@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { Clock, Film, Play, Sparkles } from 'lucide-react'
-import { memo, useEffect, useState, type Ref } from 'react'
+import { memo, useEffect, type Ref } from 'react'
 import { motion } from 'motion/react'
 import { cn, signedOffset } from '@/lib/utils'
 import { services, type ContinueItem } from '@/lib/launcher-data'
@@ -22,8 +22,38 @@ type ContinueWatchingRowProps = {
   onActivate: (index: number) => void
 }
 
-function tileImage(src: string) {
-  return src ? src.replace('image.tmdb.org/t/p/w1280/', 'image.tmdb.org/t/p/w780/') : src
+function tileImage(src: string, small: boolean) {
+  if (!src) return src
+  // Side cards are drawn at 20vw, so they ask for the smaller poster: the shell caps a `/w500/` path at
+  // 500 px instead of the 1280 px backdrop cap, which is roughly half the decoded bitmap per card.
+  return src.replace('image.tmdb.org/t/p/w1280/', `image.tmdb.org/t/p/${small ? 'w500' : 'w780'}/`)
+}
+
+/** Same artwork preload strategy as Your Taste row: decode up front so D-pad presses never land image fetches mid-swipe. */
+const preloadedArtwork = new Map<string, HTMLImageElement>()
+
+function preloadArtwork(items: ContinueItem[], safeIndex: number) {
+  if (typeof window === 'undefined') return
+  const keep = new Set<string>()
+  items.forEach((item, index) => {
+    const abs = Math.abs(signedOffset(index, safeIndex, items.length))
+    if (abs > 3) return
+    // The card mounts the exact URL the browser will request, so the decode is already warm.
+    const src = tileImage(item.image, abs >= 1)
+    if (!src) return
+    keep.add(src)
+    if (preloadedArtwork.has(src)) return
+    const image = new window.Image()
+    image.decoding = 'async'
+    image.src = src
+    preloadedArtwork.set(src, image)
+  })
+  // The shelf is capped at 10 items; drop older frames to keep memory bounded.
+  for (const src of preloadedArtwork.keys()) if (!keep.has(src)) preloadedArtwork.delete(src)
+}
+
+function detailKindLabel(detail: string) {
+  return /^(film|movie)\b/i.test(detail.trim()) ? 'Category' : 'Episode'
 }
 
 type CarouselCardProps = {
@@ -32,8 +62,6 @@ type CarouselCardProps = {
   offset: number
   rowFocused: boolean
   revealed: boolean
-  /** True for the ~520 ms a spring is in flight; the card swaps its blurred bloom for a gradient. */
-  settling: boolean
   registerRef: (index: number) => (el: HTMLElement | null) => void
   onSelect: (index: number) => void
   onHover: (index: number) => void
@@ -46,16 +74,16 @@ const CarouselCard = memo(function CarouselCard({
   offset,
   rowFocused,
   revealed,
-  settling,
   registerRef,
   onSelect,
   onHover,
   onActivate,
 }: CarouselCardProps) {
   const abs = Math.abs(offset)
-  // ±3 sits at 72vw from centre, entirely off-screen: mounting it only costs a tilted layer that the
-  // compositor still has to carry through every spring frame.
-  if (abs > 2) return null
+  // Seven cards: the centre, ±1, ±2 peeking in from the screen edges and ±3 waiting off screen. All of
+  // them ride the same 205 spring, so a card glides into the arc instead of popping in at ±2 the moment
+  // the selection moves.
+  if (abs > 3) return null
 
   const isCenter = offset === 0
   const isLeft = offset < 0
@@ -63,7 +91,7 @@ const CarouselCard = memo(function CarouselCard({
   const percent = Math.round(item.progress * 100)
   const serviceName = (item.service ? services[item.service]?.name : item.appName) ?? item.appName ?? 'app'
 
-  // Exact Video 2-6s Expanding Hero-Slide Geometry across 5 visible cards:
+  // Exact Video 2-6s Expanding Hero-Slide Geometry across the 3 mounted cards:
   //   Center (0) expands wide & taller: 38vw wide x 19.4vw tall (spans 31vw..69vw)
   //   Side cards (-1/+1/-2/+2) shrink smaller: 20vw wide x 17.6vw tall
   //   With 1.1vw uniform gaps:
@@ -72,15 +100,21 @@ const CarouselCard = memo(function CarouselCard({
   //    +1  -> +30.1vw   (70.1vw..90.1vw)
   //    -2  -> -51.2vw   (-11.2vw..8.8vw  -> 11.2vw bleeds past left edge)
   //    +2  -> +51.2vw   (91.2vw..111.2vw -> 11.2vw bleeds past right edge)
-  const xVwMap: Record<number, number> = revealed
-    ? { 0: 0, 1: 30.1, 2: 51.2, 3: 72.3 }
-    : { 0: 0, 1: 27.5, 2: 46.5, 3: 66.0 }
+  // One geometry for both states: `revealed` used to have a tighter set, so entering the shelf slid the
+  // whole arc sideways on the same spring as the focus change (it read as a shuffle, and it re-rastered
+  // every card). Only opacity reacts to `revealed` now.
+  const xVwMap: Record<number, number> = { 0: 0, 1: 30.1, 2: 51.2, 3: 72.3 }
+
+  const cardWidth = isCenter ? '38vw' : '20vw'
+  // The reference box, expressed so the 205 spring can interpolate it: width and height each stay in a
+  // single unit, and the clamp bounds ride along as static min/max so a very wide viewport still stops
+  // at the reference's 320px / 290px caps.
+  const cardHeight = isCenter ? '19.4vw' : '17.6vw'
+  const cardMinHeight = isCenter ? '174px' : '156px'
+  const cardMaxHeight = isCenter ? '320px' : '290px'
 
   const sign = offset === 0 ? 0 : offset < 0 ? -1 : 1
   const xVw = `${sign * (xVwMap[abs] ?? 72.3)}vw`
-
-  const cardWidth = isCenter ? '38vw' : '20vw'
-  const cardHeight = isCenter ? 'clamp(174px, 19.4vw, 320px)' : 'clamp(156px, 17.6vw, 290px)'
 
   const rotateYMap: Record<number, number> = { 0: 0, 1: 15, 2: 26, 3: 34 }
   const rotateY = offset === 0 ? 0 : offset < 0 ? rotateYMap[abs] ?? 34 : -(rotateYMap[abs] ?? 34)
@@ -114,10 +148,20 @@ const CarouselCard = memo(function CarouselCard({
         damping: 25,
         mass: 0.92,
       }}
-      style={{ zIndex, transformOrigin }}
+      style={{
+        zIndex,
+        transformOrigin,
+        minHeight: cardMinHeight,
+        maxHeight: cardMaxHeight,
+        contain: 'layout style',
+      }}
+      // Only the two cards that can move during a step are promoted, and only while this shelf is the
+      // focused one. The ±2/±3 pair never animates in place, so promoting it just pinned seven layers
+      // (and their rasters) in Graphics memory for nothing.
       className={cn(
-        'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 will-change-transform',
-        abs >= 3 && 'pointer-events-none',
+        'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+        rowFocused && abs <= 1 && 'will-change-transform',
+        abs > 1 && 'pointer-events-none',
       )}
     >
       <button
@@ -141,25 +185,21 @@ const CarouselCard = memo(function CarouselCard({
         className="group relative block size-full text-left outline-none"
       >
         {/* Hero-Slide Frame with Diffused Sweeping Outer Halo behind card perimeter */}
-        {focused &&
-          (settling ? (
-            <span
-              aria-hidden="true"
-              className="tv-halo-fake z-0 rounded-[clamp(18px,1.7vw,28px)]"
-              style={{ '--tv-halo-spread': '-3px' } as React.CSSProperties}
-            />
-          ) : (
-            // 8px rather than the reference 13px: this is the largest silhouette in the UI (38vw), so
-            // its blur is the single most expensive filter pass on the box. Same soft outer bloom.
-            <span
-              aria-hidden="true"
-              className="tv-halo-glow z-0 rounded-[clamp(18px,1.7vw,28px)]"
-              style={{ '--tv-halo-spread': '-3px', '--tv-halo-blur': '8px' } as React.CSSProperties}
-            />
-          ))}
-        {/* Synchronized 1.5px Conic Border Ring paired with the outer sweeping halo. Sibling of the
-            clipped surface (the band it shows is the 1.5px overhang), inside the card container, so it
-            tracks the card's scale and tilt on every frame. */}
+        {focused && (
+          <span
+            aria-hidden="true"
+            className="tv-halo-glow z-0"
+            style={
+              {
+                '--tv-halo-spread': '-3px',
+                '--tv-halo-blur': '8px',
+                borderRadius: 'clamp(18px,1.7vw,28px)',
+              } as React.CSSProperties
+            }
+          />
+        )}
+        {/* Static 1.5px gradient edge. Sibling of the clipped surface (the band it shows is the 1.5px
+            overhang), inside the card container, so it tracks the card's scale and tilt on every frame. */}
         {focused && (
           <span
             aria-hidden="true"
@@ -180,7 +220,7 @@ const CarouselCard = memo(function CarouselCard({
           }}
         >
           <Image
-            src={tileImage(item.image) || '/placeholder.svg'}
+            src={tileImage(item.image, abs >= 1) || '/placeholder.svg'}
             alt=""
             decoding="async"
             fill
@@ -228,7 +268,7 @@ const CarouselCard = memo(function CarouselCard({
                 className="h-[clamp(12px,1.05vw,18px)] w-auto max-w-[clamp(42px,3.6vw,64px)]"
               />
             </div>
-          ) : (
+          ) : abs === 2 ? (
             <div
               className={cn(
                 'pointer-events-none absolute top-[clamp(10px,1vw,18px)] z-10 opacity-75',
@@ -241,9 +281,10 @@ const CarouselCard = memo(function CarouselCard({
                 className="h-[clamp(10px,0.9vw,16px)] w-auto max-w-[clamp(34px,3vw,52px)]"
               />
             </div>
-          ))}
+          ) : null)}
 
-          {/* Center Play Control with Soft Sweeping Outer Halo */}
+          {/* Center Play Control. The orbiting bloom lives on the card perimeter only: a second blur here
+              was another full Gaussian pass per frame over the same card. */}
           {isCenter && (
             <div
               className={cn(
@@ -252,13 +293,6 @@ const CarouselCard = memo(function CarouselCard({
               )}
             >
               <div className="relative size-[clamp(36px,2.75vw,50px)] rounded-full isolate">
-                {focused && (
-                  <span
-                    aria-hidden="true"
-                    className="tv-halo-glow z-0"
-                    style={{ '--tv-halo-spread': '-2px', '--tv-halo-blur': '7px' } as React.CSSProperties}
-                  />
-                )}
                 {/* Same pattern as the hero Play pill: the hairline is the ring wrapper's 1.5px overhang
                     past the opaque pill, so it can never paint across the button. */}
                 {focused && (
@@ -271,7 +305,10 @@ const CarouselCard = memo(function CarouselCard({
                 <div
                   className="relative z-10 flex size-full items-center justify-center rounded-full shadow-[0_12px_28px_rgba(0,0,0,0.75)]"
                   style={{
-                    backgroundColor: focused ? 'var(--tv-surface, rgba(10,11,16,0.94))' : 'rgba(0,0,0,0.62)',
+                    // The hero Play pill's own opaque surface, verbatim: same accent bloom + surface.
+                    background: focused
+                      ? 'radial-gradient(circle at 30% 25%, var(--tv-glow, rgba(56,189,248,0.22)), transparent 72%), var(--tv-surface, rgba(10,11,16,0.96))'
+                      : 'rgba(0,0,0,0.62)',
                     boxShadow: focused ? undefined : 'inset 0 0 0 1px var(--tv-glass-border, rgba(255,255,255,0.24))',
                   }}
                 >
@@ -349,7 +386,7 @@ const CarouselCard = memo(function CarouselCard({
                     </span>
                     <div className="leading-tight">
                       <span className="block text-[clamp(7.5px,0.5vw,9.5px)] font-medium text-white/60">
-                        Episode
+                        {detailKindLabel(item.detail)}
                       </span>
                       <span className="block whitespace-nowrap text-[clamp(10px,0.7vw,12.5px)] font-semibold text-white">
                         {item.detail}
@@ -426,12 +463,12 @@ const CarouselCard = memo(function CarouselCard({
               aria-valuenow={percent}
             >
               <div
-                className="h-full overflow-hidden rounded-full transition-[width] duration-500 ease-out"
+                className="h-full overflow-hidden rounded-full"
                 style={{ width: `${percent}%` }}
               >
                 {focused ? (
                   <div className="relative h-full w-full">
-                    <FlowFill />
+                    <FlowFill active={rowFocused} />
                   </div>
                 ) : (
                   <div
@@ -465,19 +502,10 @@ function ContinueWatchingRowBase({
 }: ContinueWatchingRowProps) {
   const safeIndex = Math.max(0, Math.min(items.length - 1, activeIndex))
 
-  /**
-   * Freeze the conic sweep for exactly the window the 205-spring is in flight (see [data-settling] in
-   * globals.css). While the card's box changes, its blurred halo is re-rasterized every frame anyway;
-   * letting the gradient spin inside it on top of that added a second full-surface raster per frame.
-   * The sweep resumes from the same angle the moment the card settles.
-   */
-  const [settling, setSettling] = useState(false)
+  // Decode every card's poster up front so a D-pad step never lands an image fetch mid-spring.
   useEffect(() => {
-    setSettling(true)
-    const timer = window.setTimeout(() => setSettling(false), 520)
-    return () => window.clearTimeout(timer)
-  }, [safeIndex])
-
+    preloadArtwork(items, safeIndex)
+  }, [items, safeIndex])
 
   return (
     <motion.section
@@ -489,7 +517,6 @@ function ContinueWatchingRowBase({
         y: revealed ? 0 : 8,
       }}
       transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      data-settling={settling ? '' : undefined}
       className="relative min-h-dvh w-full overflow-x-clip py-[0.8vh]"
     >
       {/* Centered Header matching Your Taste */}
@@ -518,7 +545,6 @@ function ContinueWatchingRowBase({
             offset={signedOffset(index, safeIndex, items.length)}
             rowFocused={rowFocused}
             revealed={revealed}
-            settling={settling}
             registerRef={registerRef}
             onSelect={onSelect}
             onHover={onHover}
@@ -543,7 +569,7 @@ function ContinueWatchingRowBase({
                   active ? 'w-[clamp(20px,1.65vw,32px)]' : 'w-[clamp(5px,0.34vw,6.5px)] bg-white/25 hover:bg-white/45',
                 )}
               >
-                {active && <FlowFill />}
+                {active && <FlowFill active={rowFocused} />}
               </button>
             )
           })}

@@ -1,5 +1,12 @@
-import { services, tasteItems as fallbackTaste, type ContinueItem, type TasteItem } from './launcher-data'
+import {
+  services,
+  tasteItems as fallbackTaste,
+  type ContinueItem,
+  type ServiceId,
+  type TasteItem,
+} from './launcher-data'
 import { NUVIO_PACKAGE } from './nuvio-featured'
+import { loadApps } from './native-bridge'
 
 /**
  * "Your Taste" is built from what the box has actually been watching: the Watch Next rows the shell
@@ -30,13 +37,49 @@ type CatalogMeta = {
 const TOP = 'https://cinemeta-catalogs.strem.io/top/catalog'
 const SEARCH = 'https://v3-cinemeta.strem.io/catalog'
 const META = 'https://v3-cinemeta.strem.io/meta'
-const CACHE_KEY = 'launcher.taste.v2'
+const CACHE_KEY = 'launcher.taste.v4'
 const CACHE_TTL_MS = 3 * 60 * 60 * 1000
 const COUNT = 7
 const SEEDS = 4
 const ARTWORK = /^https:\/\/images\.metahub\.space\/|^https:\/\/image\.tmdb\.org\//
 
 const KIND_LABEL: Record<Kind, string> = { movie: 'Movie', series: 'Series' }
+
+/** Subscription brands that can stand in for a Cinemeta pick, most recognisable first. */
+const SERVICE_ROTATION: ServiceId[] = [
+  'netflix',
+  'max',
+  'disney-plus',
+  'prime-video',
+  'apple-tv',
+  'hulu',
+  'paramount-plus',
+  'peacock',
+  'crunchyroll',
+  'tubi',
+  'pluto-tv',
+]
+
+/** A provider mark for a card: a catalogue brand, or a native app's own icon when no brand exists. */
+type ServiceMark = { id: ServiceId; icon?: string }
+
+/**
+ * A pick is a Cinemeta title, not a subscription, but every card still wears a provider mark: the logos
+ * rotate through the streaming apps this box actually has and fall back to Nuvio's own icon otherwise.
+ */
+function serviceRotation(): ServiceMark[] {
+  const installed = new Set<ServiceId>()
+  for (const app of loadApps()) {
+    const id = app.service ?? app.pkg
+    if (SERVICE_ROTATION.includes(id)) installed.add(id)
+  }
+  const rotation: ServiceMark[] = SERVICE_ROTATION.filter((id) => installed.has(id)).map((id) => ({ id }))
+  if (rotation.length) return rotation
+
+  // Nuvio is what plays these picks; its square app icon is the only mark a shell without apps can draw.
+  if (services[NUVIO_PACKAGE]) return [{ id: NUVIO_PACKAGE, icon: `https://launcher.local/__app_icon/${NUVIO_PACKAGE}` }]
+  return SERVICE_ROTATION.filter((id) => services[id]?.isDefaultInstalled).map((id) => ({ id }))
+}
 
 function normalize(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
@@ -79,7 +122,7 @@ function nuvioIntent(meta: CatalogMeta, kind: Kind, tmdbId: string): string {
   return `intent://tmdb/${kind}/${tmdbId}#Intent;scheme=nuvio;action=android.intent.action.VIEW;package=${NUVIO_PACKAGE};${extras};end`
 }
 
-function toTasteItem(meta: CatalogMeta, kind: Kind): TasteItem | null {
+function toTasteItem(meta: CatalogMeta, kind: Kind, mark?: ServiceMark): TasteItem | null {
   const title = meta.name
   const image = backdropOf(meta)
   const tmdbId = tmdbIdOf(meta)
@@ -95,6 +138,8 @@ function toTasteItem(meta: CatalogMeta, kind: Kind): TasteItem | null {
     backdrop: meta.background,
     logo: meta.logo,
     logoIsAlpha: true,
+    service: mark?.id,
+    serviceIcon: mark?.icon,
     intentUri: nuvioIntent(meta, kind, tmdbId),
     synopsis: meta.description ?? '',
   }
@@ -164,6 +209,7 @@ async function buildTaste(continueItems: ContinueItem[]): Promise<TasteItem[]> {
   }))
 
   // Interleave movies and series so the deck alternates kinds, then drop duplicate titles.
+  const rotation = serviceRotation()
   const seen = new Set<string>()
   const items: TasteItem[] = []
   for (let i = 0; items.length < COUNT && i < ranked[0].metas.length + ranked[1].metas.length; i++) {
@@ -172,7 +218,7 @@ async function buildTaste(continueItems: ContinueItem[]): Promise<TasteItem[]> {
       if (!meta?.name) continue
       const key = normalize(meta.name)
       if (seen.has(key)) continue
-      const item = toTasteItem(meta, pool.kind)
+      const item = toTasteItem(meta, pool.kind, rotation.length ? rotation[items.length % rotation.length] : undefined)
       if (!item) continue
       seen.add(key)
       items.push(item)

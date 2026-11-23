@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { useLogoIsBlack } from '@/lib/logo-luminance'
 
 type TitleLockupProps = {
   title: string
@@ -19,6 +20,12 @@ export function TitleLockup({
   className,
   fallbackClassName,
 }: TitleLockupProps) {
+  const isAlpha = !!logo && (logoIsAlpha ?? (logo.endsWith('.svg') || logo.endsWith('.png')))
+  // Only a monochrome black wordmark is flattened to crisp white; a colourful one keeps its artwork.
+  // The verdict is the hero's shared cache (`launcher.logo.luminance.v2`): a known URL never touches a
+  // canvas again, and an unknown one is probed once by an offscreen image, never during a spring frame.
+  const black = useLogoIsBlack(isAlpha ? logo : undefined)
+
   if (!logo) {
     return (
       <p
@@ -35,7 +42,6 @@ export function TitleLockup({
     )
   }
 
-  const isAlpha = logoIsAlpha ?? (logo.endsWith('.svg') || logo.endsWith('.png'))
   const objectPos =
     align === 'left' ? 'object-left-bottom' : align === 'right' ? 'object-right-bottom' : 'object-bottom'
   const maskPos =
@@ -49,6 +55,8 @@ export function TitleLockup({
         alt=""
         draggable={false}
         decoding="async"
+        // Inline so it wins over the per-call brightness utilities (a white silhouette needs neither).
+        style={black ? { filter: 'brightness(0) invert(1)' } : undefined}
         className={cn(
           'size-full object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.95)]',
           objectPos,
